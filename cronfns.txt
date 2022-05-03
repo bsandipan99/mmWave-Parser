@@ -1,0 +1,4 @@
+*/2 * * * * /bin/bash /home/arghasen10/Documents/github/AWR1642-Read-Data-Python-MMWAVE-SDK-2/filedelete.sh >> /var/log/argha.log 2>&1
+*/2 * * * * /bin/bash /home/arghasen10/Documents/github/AWR1642-Read-Data-Python-MMWAVE-SDK-2/videodelete.sh >> /var/log/arghavideo.log 2>&1
+@reboot /bin/bash /home/arghasen10/Documents/github/AWR1642-Read-Data-Python-MMWAVE-SDK-2/videocollector.sh >> /var/log/videolog.log 2>&1
+@reboot /bin/bash /home/arghasen10/Documents/github/AWR1642-Read-Data-Python-MMWAVE-SDK-2/mmwavecollector.sh >> /var/log/mmwave.log 2>&1
