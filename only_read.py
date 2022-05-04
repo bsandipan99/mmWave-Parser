@@ -16,6 +16,7 @@ NUM_ANGLE_BINS = 64
 range_depth = 10
 range_width = 5
 
+
 # ------------------------------------------------------------------
 
 # Function to configure the serial ports and send the data from
@@ -109,6 +110,7 @@ def tensor_f(vec1, vec2):
         t.append(np.multiply(np.array(vec2), vec1[r]))
     return t
 
+
 def meshgrid(xvec, yvec):
     x = []
     y = []
@@ -116,16 +118,18 @@ def meshgrid(xvec, yvec):
         for c in range(0, len(xvec)):
             x.append(xvec[c])
             y.append(yvec[r])
-    return [x,y]
+    return [x, y]
+
 
 def reshape_rowbased(vec, rows, cols):
     t = []
-    start=0
+    start = 0
     for r in range(0, rows):
-        row = vec[start: start+cols]
+        row = vec[start: start + cols]
         t.append(row)
         start += cols
     return t
+
 
 # Function to process detected points tlvtype=1
 
@@ -192,13 +196,11 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
     idX += numrp
 
 
-
-
 def processAzimuthHeatMap(byteBuffer, idX, configParameters):
     numTxAnt = 2
     numRxAnt = 4
     numBytes = numRxAnt * numTxAnt * configParameters["numRangeBins"] * 4
-    q = byteBuffer[idX:idX+numBytes]
+    q = byteBuffer[idX:idX + numBytes]
     idX += numBytes
     q_rows = numTxAnt * numRxAnt
     q_cols = configParameters["numRangeBins"]
@@ -219,19 +221,19 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
         fft.transform(real, img)
         for ri in range(0, NUM_ANGLE_BINS):
             real[ri] = math.sqrt(real[ri] * real[ri] + img[ri] * img[ri])
-        QQ.append([y for x in [real[NUM_ANGLE_BINS/2 : ] , real[0: NUM_ANGLE_BINS/2]] for y in x])
+        QQ.append([y for x in [real[NUM_ANGLE_BINS / 2:], real[0: NUM_ANGLE_BINS / 2]] for y in x])
     fliplrQQ = []
     for tmpr in range(0, len(QQ)):
         fliplrQQ.append(QQ[tmpr][1:].reverse())
-    theta = math.asin(np.multiply(np.arange(-NUM_ANGLE_BINS/2 + 1, NUM_ANGLE_BINS/2, 1), 2/NUM_ANGLE_BINS))
+    theta = math.asin(np.multiply(np.arange(-NUM_ANGLE_BINS / 2 + 1, NUM_ANGLE_BINS / 2, 1), 2 / NUM_ANGLE_BINS))
     range = np.multiply(np.arange(0, configParameters["numRangeBins"], 1), configParameters["rangeIdxToMeters"])
     posX = tensor_f(range, math.sin(theta))
     posY = tensor_f(range, math.cos(theta))
 
-    xlin = np.arange(-range_width, range_width, 2*range_width/99)
+    xlin = np.arange(-range_width, range_width, 2 * range_width / 99)
     if len(xlin) < 100:
         xlin = np.append(xlin, range_width)
-    ylin = np.arange(0, range_depth, 1.0 * range_depth/99)
+    ylin = np.arange(0, range_depth, 1.0 * range_depth / 99)
     if len(ylin) < 100:
         ylin = np.append(ylin, range_depth)
 
@@ -242,6 +244,7 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
     zi = fliplrQQ
     zi = reshape_rowbased(zi, len(ylin), len(xlin))
     print('x: ', [xlin], 'y: ', [ylin], 'z: ', [zi])
+
 
 def processRangeDopplerHeatMap(byteBuffer, idX):
     # Get the number of bytes to read
@@ -273,14 +276,33 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     plt.clf()
     cs = plt.contourf(rangeArray, dopplerArray, rangeDoppler)
     fig.colorbar(cs,
-    shrink=0.9)
+                 shrink=0.9)
     fig.canvas.draw()
     plt.pause(0.1)
 
-#TODO
-def processStatistics(byteBuffer, idX):
 
-# Funtion to read and parse the incoming data
+def processStatistics(byteBuffer, idX):
+    word = [1, 2 ** 8, 2 ** 16, 2 ** 24]
+    interFrameProcessingTime = np.matmul(byteBuffer[idX:idX + 4], word)
+    idX += 4
+    transmitOutputTime = np.matmul(byteBuffer[idX:idX + 4], word)
+    idX += 4
+    interFrameProcessingMargin = np.matmul(byteBuffer[idX:idX + 4], word)
+    idX += 4
+    interChirpProcessingMargin = np.matmul(byteBuffer[idX:idX + 4], word)
+    idX += 4
+    activeFrameCPULoad = np.matmul(byteBuffer[idX:idX + 4], word)
+    idX += 4
+
+    interFrameCPULoad = np.matmul(byteBuffer[idX:idX + 4], word)
+    idX += 4
+    print('Statistical Parameters:',
+          ('interFrameProcessingTime: ', interFrameProcessingTime, 'transmitOutputTime: ', transmitOutputTime,
+           'interFrameProcessingMargin: ', interFrameProcessingMargin, 'interChirpProcessingMargin: ',
+           interChirpProcessingMargin,
+           'activeFrameCPULoad: ', activeFrameCPULoad))
+
+
 def readAndParseData16xx(Dataport, configParameters):
     global byteBuffer, byteBufferLength
 
