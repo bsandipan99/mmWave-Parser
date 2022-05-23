@@ -1,7 +1,9 @@
+from turtle import pd
 import serial
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas
 import fft
 import math
 
@@ -179,6 +181,8 @@ def processDetectedPoints(byteBuffer, idX, configParameters):
     # Store the data in the detObj dictionary
     detObj = {"numObj": tlv_numObj, "rangeIdx": rangeIdx, "range": rangeVal, "dopplerIdx": dopplerIdx,
               "doppler": dopplerVal, "peakVal": peakVal, "x": x, "y": y, "z": z}
+    df=pandas.DataFrame(detObj)
+    df.to_csv('dataset.csv', index=False)
     print('detObj', detObj)
     dataOK = 1
     print('idX after detecting points:', idX)
@@ -193,7 +197,7 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
         traceidX = 2
     numrp = 2 * configParameters["numRangeBins"]
     rp = byteBuffer[idX:idX + numrp]
-    rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256) 
+    rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256)    
     rp_x= np.array(range(configParameters["numRangebins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
 
