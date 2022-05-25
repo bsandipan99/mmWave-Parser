@@ -181,8 +181,6 @@ def processDetectedPoints(byteBuffer, idX, configParameters):
     # Store the data in the detObj dictionary
     detObj = {"numObj": tlv_numObj, "rangeIdx": rangeIdx, "range": rangeVal, "dopplerIdx": dopplerIdx,
               "doppler": dopplerVal, "peakVal": peakVal, "x": x, "y": y, "z": z}
-    df=pandas.DataFrame(detObj)
-    df.to_csv('dataset.csv', index=False)
     print('detObj', detObj)
     dataOK = 1
     print('idX after detecting points:', idX)
@@ -200,6 +198,8 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
     rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256)    
     rp_x= np.array(range(configParameters["numRangebins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
+    noiseObj={'rp': rp, 'rp_x': rp_x}
+    return noiseObj
 
 
 def processAzimuthHeatMap(byteBuffer, idX, configParameters):
@@ -249,7 +249,9 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
 
     zi = fliplrQQ
     zi = reshape_rowbased(zi, len(ylin), len(xlin))
+    heatObj={'posX': posX, 'posY': posY, 'xi': xlin, 'yi': ylin, 'zi': zi}
     print('x: ', [xlin], 'y: ', [ylin], 'z: ', [zi])
+    return heatObj
 
 
 def processRangeDopplerHeatMap(byteBuffer, idX):
@@ -278,13 +280,8 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     dopplerArray = np.multiply(
         np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
         configParameters["dopplerResolutionMps"])
-
-    plt.clf()
-    cs = plt.contourf(rangeArray, dopplerArray, rangeDoppler)
-    fig.colorbar(cs,
-                 shrink=0.9)
-    fig.canvas.draw()
-    plt.pause(0.1)
+    dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
+    return dopplerObj
 
 
 def processStatistics(byteBuffer, idX):
@@ -302,11 +299,11 @@ def processStatistics(byteBuffer, idX):
 
     interFrameCPULoad = np.matmul(byteBuffer[idX:idX + 4], word)
     idX += 4
-    print('Statistical Parameters:',
-          ('interFrameProcessingTime: ', interFrameProcessingTime, 'transmitOutputTime: ', transmitOutputTime,
-           'interFrameProcessingMargin: ', interFrameProcessingMargin, 'interChirpProcessingMargin: ',
+    statisticsObj={'interFrameProcessingTime': interFrameProcessingTime, 'transmitOutputTime': transmitOutputTime,
+           'interFrameProcessingMargin': interFrameProcessingMargin, 'interChirpProcessingMargin':
            interChirpProcessingMargin,
-           'activeFrameCPULoad: ', activeFrameCPULoad))
+           'activeFrameCPULoad': activeFrameCPULoad, 'interFrameCPULoad': interFrameCPULoad}
+    return statisticsObj
 
 
 def readAndParseData16xx(Dataport, configParameters):
@@ -405,6 +402,7 @@ def readAndParseData16xx(Dataport, configParameters):
         subFrameNumber = np.matmul(byteBuffer[idX:idX + 4], word)
         idX += 4
         print('idx before entering: ', idX)
+        df=pandas.DataFrame()
         # Read the TLV messages
         for tlvIdx in range(numTLVs):
 
@@ -423,24 +421,29 @@ def readAndParseData16xx(Dataport, configParameters):
             # Read the data depending on the TLV message
             if tlv_type == MMWDEMO_UART_MSG_DETECTED_POINTS:
                 detObj = processDetectedPoints(byteBuffer, idX)
+                df=df.append(detObj)
             elif tlv_type == MMWDEMO_UART_MSG_RANGE_PROFILE:
-                processRangeNoiseProfile(byteBuffer, idX, detObj, isRangeProfile=True)
+                noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, isRangeProfile=True)
+                df=df.append(noiseObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_NOISE_PROFILE:
-                processRangeNoiseProfile(byteBuffer, idX, detObj, isRangeProfile=False)
+                noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, isRangeProfile=False)
+                df=df.append(noiseObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
-                processAzimuthHeatMap(byteBuffer, idX)
+                heatObj=processAzimuthHeatMap(byteBuffer, idX)
+                df=df.append(heatObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
-                if processStatistics(byteBuffer, idX) == 0:
-                    continue
+                dopplerObj=processRangeDopplerHeatMap(byteBuffer,idX)
+                df=df.append(dopplerObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
-                processStatistics(byteBuffer, idX)
+                statisticsObj=processStatistics(byteBuffer, idX)
+                df=df.append(statisticsObj)
 
             idX += tlv_length
             print('final idx: ', idX)
             # except Error as e:
             #     print('Here is a pass', e)
             #     pass
-
+        df.to_csv('dataset.csv', index=False)
         # Remove already processed data
         if idX > 0 and byteBufferLength > idX:
             shiftSize = totalPacketLen
