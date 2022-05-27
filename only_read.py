@@ -232,10 +232,19 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
     fliplrQQ = []
     for tmpr in range(0, len(QQ)):
         fliplrQQ.append(QQ[tmpr][1:].reverse())
-    theta = math.asin(np.multiply(np.arange(-NUM_ANGLE_BINS / 2 + 1, NUM_ANGLE_BINS / 2, 1), 2 / NUM_ANGLE_BINS))
+    angles_rad = np.multiply(np.arange(-NUM_ANGLE_BINS / 2 + 1, NUM_ANGLE_BINS / 2, 1), 2 / NUM_ANGLE_BINS)
+    theta = []
+    for ang in angles_rad:
+        theta.append(math.asin(ang))
+    # print('theta', theta)
     range_val = np.multiply(np.arange(0, configParameters["numRangeBins"], 1), configParameters["rangeIdxToMeters"])
-    posX = tensor_f(range_val, math.sin(theta))
-    posY = tensor_f(range_val, math.cos(theta))
+    sin_theta = []
+    cos_theta = []
+    for t in theta:
+        sin_theta.append(math.sin(t))
+        cos_theta.append(math.cos(t))
+    posX = tensor_f(range_val, sin_theta)
+    posY = tensor_f(range_val, cos_theta)
 
     xlin = np.arange(-range_width, range_width, 2 * range_width / 99)
     if len(xlin) < 100:
@@ -246,43 +255,44 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
 
     xiyi = meshgrid(xlin, ylin)
 
-    print('posX:', posX, 'posY:', posY, 'xiyi[0]:', xiyi[0], 'xiyi[1]:', xiyi[1])
+    # print('posX:', posX, 'posY:', posY, 'xiyi[0]:', xiyi[0], 'xiyi[1]:', xiyi[1])
 
     zi = fliplrQQ
     zi = reshape_rowbased(zi, len(ylin), len(xlin))
     heatObj={'posX': posX, 'posY': posY, 'xi': xlin, 'yi': ylin, 'zi': zi}
-    print('x: ', [xlin], 'y: ', [ylin], 'z: ', [zi])
+    # print('x: ', [xlin], 'y: ', [ylin], 'z: ', [zi])
     return heatObj
 
 
 def processRangeDopplerHeatMap(byteBuffer, idX):
     # Get the number of bytes to read
     numBytes = 2 * configParameters["numRangeBins"] * configParameters["numDopplerBins"]
-
+    numBytes = int(numBytes)
     # Convert the raw data to int16 array
     payload = byteBuffer[idX:idX + numBytes]
     idX += numBytes
+    return
     rangeDoppler = payload.view(dtype=np.int16)
-
     # Some frames have strange values, skip those frames
     # TO DO: Find why those strange frames happen
-    if np.max(rangeDoppler) > 10000:
-        return 0
+    # if np.max(rangeDoppler) > 10000:
+    #     return 0
 
     # Convert the range doppler array to a matrix
-    rangeDoppler = np.reshape(rangeDoppler,
-                              (configParameters["numDopplerBins"], configParameters["numRangeBins"]),
-                              'F')  # Fortran-like reshape
-    rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
-                             rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
-
-    # Generate the range and doppler arrays for the plot
-    rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
-    dopplerArray = np.multiply(
-        np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
-        configParameters["dopplerResolutionMps"])
-    dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
-    return dopplerObj
+    # rangeDoppler = np.reshape(rangeDoppler,
+    #                           (configParameters["numDopplerBins"], configParameters["numRangeBins"]),
+    #                           'F')  # Fortran-like reshape
+    # rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
+    #                          rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
+    #
+    # # Generate the range and doppler arrays for the plot
+    # rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
+    # dopplerArray = np.multiply(
+    #     np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
+    #     configParameters["dopplerResolutionMps"])
+    # dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
+    #
+    # return dopplerObj
 
 
 def processStatistics(byteBuffer, idX):
@@ -433,8 +443,8 @@ def readAndParseData16xx(Dataport, configParameters):
                 heatObj=processAzimuthHeatMap(byteBuffer, idX, configParameters)
                 df=df.append(heatObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
-                dopplerObj=processRangeDopplerHeatMap(byteBuffer,idX)
-                df=df.append(dopplerObj, ignore_index=True)
+                processRangeDopplerHeatMap(byteBuffer,idX)
+                # df=df.append(dopplerObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj=processStatistics(byteBuffer, idX)
                 df=df.append(statisticsObj, ignore_index=True)
@@ -487,7 +497,7 @@ while True:
 
     # Stop the program and close everything if Ctrl + c is pressed
     except KeyboardInterrupt:
-        CLIport.write(('sensorStop\n').encode())
+        CLIport.write('sensorStop\n'.encode())
         CLIport.close()
         Dataport.close()
         break
