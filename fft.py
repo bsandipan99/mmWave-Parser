@@ -24,6 +24,7 @@ def inverseTransform(real, imag):
 def transformRadix2(real, imag):
     if len(real) != len(imag):
         print("Mismatched lengths")
+        return
     n = len(real)
     if n == 1:
         return
@@ -33,11 +34,12 @@ def transformRadix2(real, imag):
             levels = i
     if levels == -1:
         print("Length is not a power of 2")
+        return
     cosTable = []
     sinTable = []
-    for i in range(0, n / 2):
-        cosTable[i] = math.cos(2 * math.pi * i / n)
-        sinTable[i] = math.sin(2 * math.pi * i / n)
+    for i in range(0, int(n / 2) - 1):
+        cosTable.append(math.cos(2 * math.pi * i / n))
+        sinTable.append(math.sin(2 * math.pi * i / n))
 
     # Bit - reversed addressing permutation
     for i in range(0, n):
@@ -53,8 +55,8 @@ def transformRadix2(real, imag):
     # Cooley - Tukey decimation - in -time radix - 2 FFT
     size = 2
     while size <= n:
-        halfsize = size / 2
-        tablestep = n / size
+        halfsize = int(size / 2) - 1
+        tablestep = int(n / size)
         i = 0
         while i < n:
             j = i

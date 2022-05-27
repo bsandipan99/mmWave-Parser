@@ -29,8 +29,8 @@ def serialConfig(configFileName):
     # Open the serial ports for the configuration and the data ports
 
     # Raspberry pi
-    CLIport = serial.Serial('/dev/ttyACM1', 115200)
-    Dataport = serial.Serial('/dev/ttyACM2', 921600)
+    CLIport = serial.Serial('COM3', 115200)
+    Dataport = serial.Serial('COM4', 921600)
 
     # Windows
     # CLIport = serial.Serial('COM3', 115200)
@@ -196,7 +196,7 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
     numrp = 2 * configParameters["numRangeBins"]
     rp = byteBuffer[idX:idX + numrp]
     rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256)    
-    rp_x= np.array(range(configParameters["numRangebins"])) * configParameters["rangeIdxToMeters"]
+    rp_x= np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
     noiseObj={'numrp': numrp, 'rp': rp, 'rpX': rp_x}
     return noiseObj
@@ -226,15 +226,16 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
             q_idx = q_idx + 4
         fft.transform(real, img)
         for ri in range(0, NUM_ANGLE_BINS):
-            real[ri] = math.sqrt(real[ri] * real[ri] + img[ri] * img[ri])
-        QQ.append([y for x in [real[NUM_ANGLE_BINS / 2:], real[0: NUM_ANGLE_BINS / 2]] for y in x])
+            real[ri] = int(math.sqrt(real[ri] * real[ri] + img[ri] * img[ri]))
+
+        QQ.append([y for x in [real[int(NUM_ANGLE_BINS / 2):], real[0: int(NUM_ANGLE_BINS / 2)]] for y in x])
     fliplrQQ = []
     for tmpr in range(0, len(QQ)):
         fliplrQQ.append(QQ[tmpr][1:].reverse())
     theta = math.asin(np.multiply(np.arange(-NUM_ANGLE_BINS / 2 + 1, NUM_ANGLE_BINS / 2, 1), 2 / NUM_ANGLE_BINS))
-    range = np.multiply(np.arange(0, configParameters["numRangeBins"], 1), configParameters["rangeIdxToMeters"])
-    posX = tensor_f(range, math.sin(theta))
-    posY = tensor_f(range, math.cos(theta))
+    range_val = np.multiply(np.arange(0, configParameters["numRangeBins"], 1), configParameters["rangeIdxToMeters"])
+    posX = tensor_f(range_val, math.sin(theta))
+    posY = tensor_f(range_val, math.cos(theta))
 
     xlin = np.arange(-range_width, range_width, 2 * range_width / 99)
     if len(xlin) < 100:
@@ -420,23 +421,23 @@ def readAndParseData16xx(Dataport, configParameters):
             print('tlv_length', tlv_length)
             # Read the data depending on the TLV message
             if tlv_type == MMWDEMO_UART_MSG_DETECTED_POINTS:
-                detObj = processDetectedPoints(byteBuffer, idX)
-                df=df.append(detObj)
+                detObj = processDetectedPoints(byteBuffer, idX, configParameters)
+                df=df.append(detObj, ignore_index=True)
             elif tlv_type == MMWDEMO_UART_MSG_RANGE_PROFILE:
-                noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, isRangeProfile=True)
-                df=df.append(noiseObj)
+                noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=True)
+                df=df.append(noiseObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_NOISE_PROFILE:
-                noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, isRangeProfile=False)
-                df=df.append(noiseObj)
+                noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=False)
+                df=df.append(noiseObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
-                heatObj=processAzimuthHeatMap(byteBuffer, idX)
-                df=df.append(heatObj)
+                heatObj=processAzimuthHeatMap(byteBuffer, idX, configParameters)
+                df=df.append(heatObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
                 dopplerObj=processRangeDopplerHeatMap(byteBuffer,idX)
-                df=df.append(dopplerObj)
+                df=df.append(dopplerObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj=processStatistics(byteBuffer, idX)
-                df=df.append(statisticsObj)
+                df=df.append(statisticsObj, ignore_index=True)
 
             idX += tlv_length
             print('final idx: ', idX)
