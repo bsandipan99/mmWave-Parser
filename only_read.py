@@ -198,7 +198,7 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
     rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256)    
     rp_x= np.array(range(configParameters["numRangebins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
-    noiseObj={'rp': rp, 'rp_x': rp_x}
+    noiseObj={'numrp': numrp, 'rp': rp, 'rpX': rp_x}
     return noiseObj
 
 
