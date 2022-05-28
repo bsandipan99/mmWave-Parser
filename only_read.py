@@ -266,12 +266,17 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
 
 def processRangeDopplerHeatMap(byteBuffer, idX):
     # Get the number of bytes to read
-    numBytes = 2 * configParameters["numRangeBins"] * configParameters["numDopplerBins"]
+    numBytes = 2 * configParameters["numRangeBins"] * int(configParameters["numDopplerBins"])
     numBytes = int(numBytes)
     # Convert the raw data to int16 array
     payload = byteBuffer[idX:idX + numBytes]
     idX += numBytes
-    return
+    # rangeDoppler = math.add(
+    #     math.subset(rangeDoppler, math.index(math.range(0, numBytes, 2))),
+    #     math.multiply(math.subset(rangeDoppler, math.index(math.range(1, numBytes, 2))), 256)
+    # );
+    payload = sum(np.array(payload[0:numBytes:2]), np.array(payload[1:numBytes:2]) * 256)
+
     rangeDoppler = payload.view(dtype=np.int16)
     # Some frames have strange values, skip those frames
     # TO DO: Find why those strange frames happen
@@ -279,20 +284,20 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     #     return 0
 
     # Convert the range doppler array to a matrix
-    # rangeDoppler = np.reshape(rangeDoppler,
-    #                           (configParameters["numDopplerBins"], configParameters["numRangeBins"]),
-    #                           'F')  # Fortran-like reshape
-    # rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
-    #                          rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
+    rangeDoppler = np.reshape(rangeDoppler,
+                              (int(configParameters["numDopplerBins"]), configParameters["numRangeBins"]),
+                              'F')  # Fortran-like reshape
+    rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
+                             rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
     #
     # # Generate the range and doppler arrays for the plot
-    # rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
-    # dopplerArray = np.multiply(
-    #     np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
-    #     configParameters["dopplerResolutionMps"])
-    # dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
-    #
-    # return dopplerObj
+    rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
+    dopplerArray = np.multiply(
+        np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
+        configParameters["dopplerResolutionMps"])
+    dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
+    print('dopplerObj', dopplerObj)
+    return dopplerObj
 
 
 def processStatistics(byteBuffer, idX):
@@ -443,8 +448,8 @@ def readAndParseData16xx(Dataport, configParameters):
                 heatObj=processAzimuthHeatMap(byteBuffer, idX, configParameters)
                 df=df.append(heatObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
-                processRangeDopplerHeatMap(byteBuffer,idX)
-                # df=df.append(dopplerObj, ignore_index=True)
+                dopplerObj=processRangeDopplerHeatMap(byteBuffer,idX)
+                df=df.append(dopplerObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj=processStatistics(byteBuffer, idX)
                 df=df.append(statisticsObj, ignore_index=True)
