@@ -432,22 +432,27 @@ def readAndParseData16xx(Dataport, configParameters):
             # Read the data depending on the TLV message
             if tlv_type == MMWDEMO_UART_MSG_DETECTED_POINTS:
                 detObj = processDetectedPoints(byteBuffer, idX, configParameters)
-                df=df.append(detObj, ignore_index=True)
+                df1=pandas.DataFrame(detObj)
+                df=pandas.concat([df, df1], axis=1, ignore_index=True)
             elif tlv_type == MMWDEMO_UART_MSG_RANGE_PROFILE:
                 noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=True)
-                df=df.append(noiseObj, ignore_index=True)
+                df1=pandas.DataFrame(noiseObj)
+                df=pandas.concat([df, df1], axis=1, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_NOISE_PROFILE:
                 noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=False)
-                df=df.append(noiseObj, ignore_index=True)
+                df1=pandas.DataFrame(noiseObj)
+                df=pandas.concat([df, df1], axis=1, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
                 heatObj=processAzimuthHeatMap(byteBuffer, idX, configParameters)
-                df=df.append(heatObj, ignore_index=True)
+                df1=pandas.DataFrame(heatObj)
+                df=pandas.concat([df, df1], axis=1, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
                 processRangeDopplerHeatMap(byteBuffer,idX)
                 # df=df.append(dopplerObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj=processStatistics(byteBuffer, idX)
-                df=df.append(statisticsObj, ignore_index=True)
+                df1=pandas.DataFrame(statisticsObj)
+                df=pandas.concat([df, df1], axis=1, ignore_index=True)
 
             idX += tlv_length
             print('final idx: ', idX)
