@@ -6,6 +6,10 @@ import matplotlib.pyplot as plt
 import pandas
 import fft
 import math
+import os
+from dotenv import load_dotenv
+load_dotenv('.env')
+os_name = os.environ.get("OS")
 
 
 configFileName = 'all_profiles.cfg'
@@ -29,12 +33,13 @@ def serialConfig(configFileName):
     # Open the serial ports for the configuration and the data ports
 
     # Raspberry pi
-    CLIport = serial.Serial('COM3', 115200)
-    Dataport = serial.Serial('COM4', 921600)
+    if os_name == "Ubuntu":
+    	CLIport = serial.Serial('/dev/ttyACM0', 115200)
+    	Dataport = serial.Serial('/dev/ttyACM1', 921600)
 
-    # Windows
-    # CLIport = serial.Serial('COM3', 115200)
-    # Dataport = serial.Serial('COM4', 921600)
+    elif os_name == "Windows":
+        CLIport = serial.Serial('COM3', 115200)
+        Dataport = serial.Serial('COM4', 921600)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip('\r\n') for line in open(configFileName)]
