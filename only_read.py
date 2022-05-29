@@ -7,7 +7,7 @@ import pandas
 import fft
 import math
 
-# TO DO: Add your own config file
+
 configFileName = 'all_profiles.cfg'
 CLIport = {}
 Dataport = {}
