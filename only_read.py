@@ -18,22 +18,23 @@ CLIport = {}
 Dataport = {}
 byteBuffer = np.zeros(2 ** 15, dtype='uint8')
 byteBufferLength = 0
-
+rangeAzimuthHeatMapGridInit = 0
+xlin, ylin = [], []
 NUM_ANGLE_BINS = 64
 range_depth = 10
 range_width = 5
 
 header=['Date','Time','numObj', 'rangeIdx', 'range', 'dopplerIdx',
-              'doppler', 'peakVal', 'x', 'y', 'z','numrp', 'rp',
-              'rpX','posX', 'posY', 'xi', 'yi', 'zi',
+              'doppler', 'peakVal', 'x', 'y', 'z', 'rp',
+              'rpX', 'zi',
               'rangeDoppler', 'rangeArray', 'dopplerArray',
               'interFrameProcessingTime', 'transmitOutputTime',
            'interFrameProcessingMargin', 'interChirpProcessingMargin',
            'activeFrameCPULoad', 'interFrameCPULoad']
 
 def file_create():
-    filename = os.path.abspath('only_read.py')
-    filename += time.strftime("%Y%m%d_%H%M%S")
+    filename = os.path.abspath('')
+    filename += time.strftime("\%Y%m%d_%H%M%S")
     filename += '.csv'
     print('Created file', filename)
     with open(filename, 'w') as f:
@@ -57,7 +58,7 @@ def serialConfig(configFileName):
     	CLIport = serial.Serial('/dev/ttyACM0', 115200)
     	Dataport = serial.Serial('/dev/ttyACM1', 921600)
 
-    elif os_name == "Windows":
+    elif os_name == "Windows_NT":
         CLIport = serial.Serial('COM3', 115200)
         Dataport = serial.Serial('COM4', 921600)
 
@@ -220,10 +221,10 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
         traceidX = 2
     numrp = 2 * configParameters["numRangeBins"]
     rp = byteBuffer[idX:idX + numrp]
-    rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256)    
+    rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256)                             # This is also wrong implementation
     rp_x= np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
-    noiseObj={'numrp': numrp, 'rp': rp, 'rpX': rp_x}
+    noiseObj={'rp': rp}
     return noiseObj
 
 
@@ -257,34 +258,38 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
     fliplrQQ = []
     for tmpr in range(0, len(QQ)):
         fliplrQQ.append(QQ[tmpr][1:].reverse())
-    angles_rad = np.multiply(np.arange(-NUM_ANGLE_BINS / 2 + 1, NUM_ANGLE_BINS / 2, 1), 2 / NUM_ANGLE_BINS)
-    theta = []
-    for ang in angles_rad:
-        theta.append(math.asin(ang))
-    # print('theta', theta)
-    range_val = np.multiply(np.arange(0, configParameters["numRangeBins"], 1), configParameters["rangeIdxToMeters"])
-    sin_theta = []
-    cos_theta = []
-    for t in theta:
-        sin_theta.append(math.sin(t))
-        cos_theta.append(math.cos(t))
-    posX = tensor_f(range_val, sin_theta)
-    posY = tensor_f(range_val, cos_theta)
+    global rangeAzimuthHeatMapGridInit
+    if rangeAzimuthHeatMapGridInit == 0:
+        angles_rad = np.multiply(np.arange(-NUM_ANGLE_BINS / 2 + 1, NUM_ANGLE_BINS / 2, 1), 2 / NUM_ANGLE_BINS)
+        theta = []
+        for ang in angles_rad:
+            theta.append(math.asin(ang))
+        # print('theta', theta)
+        range_val = np.multiply(np.arange(0, configParameters["numRangeBins"], 1), configParameters["rangeIdxToMeters"])
+        sin_theta = []
+        cos_theta = []
+        for t in theta:
+            sin_theta.append(math.sin(t))
+            cos_theta.append(math.cos(t))
+        posX = tensor_f(range_val, sin_theta)
+        posY = tensor_f(range_val, cos_theta)
 
-    xlin = np.arange(-range_width, range_width, 2 * range_width / 99)
-    if len(xlin) < 100:
-        xlin = np.append(xlin, range_width)
-    ylin = np.arange(0, range_depth, 1.0 * range_depth / 99)
-    if len(ylin) < 100:
-        ylin = np.append(ylin, range_depth)
+        global xlin, ylin
+        xlin = np.arange(-range_width, range_width, 2 * range_width / 99)
+        if len(xlin) < 100:
+            xlin = np.append(xlin, range_width)
+        ylin = np.arange(0, range_depth, 1.0 * range_depth / 99)
+        if len(ylin) < 100:
+            ylin = np.append(ylin, range_depth)
 
-    xiyi = meshgrid(xlin, ylin)
+        xiyi = meshgrid(xlin, ylin)
+        rangeAzimuthHeatMapGridInit = 1
 
     # print('posX:', posX, 'posY:', posY, 'xiyi[0]:', xiyi[0], 'xiyi[1]:', xiyi[1])
 
     zi = fliplrQQ
     zi = reshape_rowbased(zi, len(ylin), len(xlin))
-    heatObj={'posX': posX, 'posY': posY, 'xi': xlin, 'yi': ylin, 'zi': zi}
+    heatObj={'zi': zi}
     # print('x: ', [xlin], 'y: ', [ylin], 'z: ', [zi])
     return heatObj
 
@@ -300,7 +305,7 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     #     math.subset(rangeDoppler, math.index(math.range(0, numBytes, 2))),
     #     math.multiply(math.subset(rangeDoppler, math.index(math.range(1, numBytes, 2))), 256)
     # );
-    payload = sum(np.array(payload[0:numBytes:2]), np.array(payload[1:numBytes:2]) * 256)
+    payload = sum(np.array(payload[0:numBytes:2]), np.array(payload[1:numBytes:2]) * 256)    #wrong implementation. Need to update the range doppler at range index.
 
     rangeDoppler = payload.view(dtype=np.int16)
     # Some frames have strange values, skip those frames
@@ -319,7 +324,7 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     dopplerArray = np.multiply(
         np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
-        configParameters["dopplerResolutionMps"])
+        configParameters["dopplerResolutionMps"])                                                               # This is dopplermps from js. 
     dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
     print('dopplerObj', dopplerObj)
     return dopplerObj
@@ -349,7 +354,7 @@ def processStatistics(byteBuffer, idX):
 
 def readAndParseData16xx(Dataport, configParameters,filename):
     global byteBuffer, byteBufferLength
-
+    finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S')}
     # Constants
     OBJ_STRUCT_SIZE_BYTES = 12
     BYTE_VEC_ACC_MAX_SIZE = 2 ** 15
@@ -372,7 +377,7 @@ def readAndParseData16xx(Dataport, configParameters,filename):
     readBuffer = Dataport.read(Dataport.in_waiting)
     byteVec = np.frombuffer(readBuffer, dtype='uint8')
     byteCount = len(byteVec)
-
+    print('byteCount', byteCount)
     # Check that the buffer is not full, and then add the data to the buffer
     if (byteBufferLength + byteCount) < maxBufferSize:
         byteBuffer[byteBufferLength:byteBufferLength + byteCount] = byteVec[:byteCount]
@@ -417,6 +422,7 @@ def readAndParseData16xx(Dataport, configParameters,filename):
 
     # If magicOK is equal to 1 then process the message
     if magicOK:
+        
         # word array to convert 4 bytes to a 32 bit number
         word = [1, 2 ** 8, 2 ** 16, 2 ** 24]
 
@@ -480,6 +486,7 @@ def readAndParseData16xx(Dataport, configParameters,filename):
 
             idX += tlv_length
             print('final idx: ', idX)
+            print('finalObj: ', finalObj)
             # except Error as e:
             #     print('Here is a pass', e)
             #     pass
@@ -515,16 +522,14 @@ detObj = {}
 frameData = {}
 currentIndex = 0
 filename=file_create()
-finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S')}
 linecounter=0
-fig = plt.figure()
+
 while True:
     linecounter += 1
     if linecounter > 10000:
         linecounter = 0
         print('creatng new file')
         filename = file_create()
-        finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S')}
     try:
         dataOk, frameNumber, detObj = readAndParseData16xx(Dataport, configParameters,filename)
         # print(detObj)
