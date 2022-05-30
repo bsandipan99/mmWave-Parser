@@ -23,7 +23,7 @@ NUM_ANGLE_BINS = 64
 range_depth = 10
 range_width = 5
 
-header=['Date','Time','numObj', 'rangeIdx', 'range', 'dopplerIdx',
+header=['Date','Time','Timestamp','numObj', 'rangeIdx', 'range', 'dopplerIdx',
               'doppler', 'peakVal', 'x', 'y', 'z','numrp', 'rp',
               'rpX','posX', 'posY', 'xi', 'yi', 'zi',
               'rangeDoppler', 'rangeArray', 'dopplerArray',
@@ -515,7 +515,7 @@ detObj = {}
 frameData = {}
 currentIndex = 0
 filename=file_create()
-finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S')}
+finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S'),'Timestamp':time.time()}
 linecounter=0
 fig = plt.figure()
 while True:
@@ -524,7 +524,7 @@ while True:
         linecounter = 0
         print('creatng new file')
         filename = file_create()
-        finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S')}
+        finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S'),'Timestamp':time.time()}
     try:
         dataOk, frameNumber, detObj = readAndParseData16xx(Dataport, configParameters,filename)
         # print(detObj)
