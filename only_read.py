@@ -23,6 +23,25 @@ NUM_ANGLE_BINS = 64
 range_depth = 10
 range_width = 5
 
+header=['Date','Time','numObj', 'rangeIdx', 'range', 'dopplerIdx',
+              'doppler', 'peakVal', 'x', 'y', 'z','numrp', 'rp',
+              'rpX','posX', 'posY', 'xi', 'yi', 'zi',
+              'rangeDoppler', 'rangeArray', 'dopplerArray',
+              'interFrameProcessingTime', 'transmitOutputTime',
+           'interFrameProcessingMargin', 'interChirpProcessingMargin',
+           'activeFrameCPULoad', 'interFrameCPULoad']
+
+def file_create():
+    filename = os.path.abspath('only_read.py')
+    filename += time.strftime("%Y%m%d_%H%M%S")
+    filename += '.csv'
+    print('Created file', filename)
+    with open(filename, 'w') as f:
+        csv.DictWriter(f, fieldnames=header).writeheader()
+
+    return filename
+
+
 
 # ------------------------------------------------------------------
 
@@ -328,7 +347,7 @@ def processStatistics(byteBuffer, idX):
     return statisticsObj
 
 
-def readAndParseData16xx(Dataport, configParameters):
+def readAndParseData16xx(Dataport, configParameters,filename):
     global byteBuffer, byteBufferLength
 
     # Constants
@@ -442,87 +461,22 @@ def readAndParseData16xx(Dataport, configParameters):
             # Read the data depending on the TLV message
             if tlv_type == MMWDEMO_UART_MSG_DETECTED_POINTS:
                 detObj = processDetectedPoints(byteBuffer, idX, configParameters)
-                with open("dataset.csv", "w") as outfile:
-                    writer = csv.writer(outfile)
-
-                    writer.writerow(detObj.keys())                
-                    
-                    writer.writerows(zip(*detObj.values()))
+                finalObj.update(detObj)
             elif tlv_type == MMWDEMO_UART_MSG_RANGE_PROFILE:
                 noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=True)
-                with open("dataset.csv", "w") as outfile:
- 
-                    # pass the csv file to csv.writer function.
-                    writer = csv.writer(outfile)
-                
-                    # pass the dictionary keys to writerow
-                    # function to frame the columns of the csv file
-                    writer.writerow(noiseObj.keys())
-                
-                    # make use of writerows function to append
-                    # the remaining values to the corresponding
-                    # columns using zip function.
-                    writer.writerows(zip(*noiseObj.values()))
+                finalObj.update(noiseObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_NOISE_PROFILE:
                 noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=False)
-                with open("dataset.csv", "w") as outfile:
- 
-                    # pass the csv file to csv.writer function.
-                    writer = csv.writer(outfile)
-                
-                    # pass the dictionary keys to writerow
-                    # function to frame the columns of the csv file
-                    writer.writerow(noiseObj.keys())
-                
-                    # make use of writerows function to append
-                    # the remaining values to the corresponding
-                    # columns using zip function.
-                    writer.writerows(zip(*noiseObj.values()))
+                finalObj.update(noiseObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
                 heatObj=processAzimuthHeatMap(byteBuffer, idX, configParameters)
-                with open("dataset.csv", "w") as outfile:
- 
-                    # pass the csv file to csv.writer function.
-                    writer = csv.writer(outfile)
-                
-                    # pass the dictionary keys to writerow
-                    # function to frame the columns of the csv file
-                    writer.writerow(heatObj.keys())
-                
-                    # make use of writerows function to append
-                    # the remaining values to the corresponding
-                    # columns using zip function.
-                    writer.writerows(zip(*heatObj.values()))
+                finalObj.update(heatObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
                 dopplerObj=processRangeDopplerHeatMap(byteBuffer,idX)
-                with open("dataset.csv", "w") as outfile:
- 
-                    # pass the csv file to csv.writer function.
-                    writer = csv.writer(outfile)
-                
-                    # pass the dictionary keys to writerow
-                    # function to frame the columns of the csv file
-                    writer.writerow(dopplerObj.keys())
-                
-                    # make use of writerows function to append
-                    # the remaining values to the corresponding
-                    # columns using zip function.
-                    writer.writerows(zip(*dopplerObj.values()))
+                finalObj.update(dopplerObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj=processStatistics(byteBuffer, idX)
-                with open("dataset.csv", "w") as outfile:
- 
-                    # pass the csv file to csv.writer function.
-                    writer = csv.writer(outfile)
-                
-                    # pass the dictionary keys to writerow
-                    # function to frame the columns of the csv file
-                    writer.writerow(statisticsObj.keys())
-                
-                    # make use of writerows function to append
-                    # the remaining values to the corresponding
-                    # columns using zip function.
-                    writer.writerows(zip(*statisticsObj.values()))
+                finalObj.update(statisticsObj)
 
             idX += tlv_length
             print('final idx: ', idX)
@@ -530,6 +484,9 @@ def readAndParseData16xx(Dataport, configParameters):
             #     print('Here is a pass', e)
             #     pass
         # Remove already processed data
+        with open(filename, 'a') as f:
+                    writer = csv.DictWriter(f, header)
+                    writer.writerow(finalObj)
         if idX > 0 and byteBufferLength > idX:
             shiftSize = totalPacketLen
 
@@ -557,10 +514,19 @@ configParameters = parseConfigFile(configFileName)
 detObj = {}
 frameData = {}
 currentIndex = 0
+filename=file_create()
+finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S')}
+linecounter=0
 fig = plt.figure()
 while True:
+    linecounter += 1
+    if linecounter > 10000:
+        linecounter = 0
+        print('creatng new file')
+        filename = file_create()
+        finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S')}
     try:
-        dataOk, frameNumber, detObj = readAndParseData16xx(Dataport, configParameters)
+        dataOk, frameNumber, detObj = readAndParseData16xx(Dataport, configParameters,filename)
         # print(detObj)
         if dataOk:
             # Store the current frame into frameData
