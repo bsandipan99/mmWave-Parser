@@ -7,6 +7,7 @@ import pandas
 import fft
 import math
 import os
+import csv
 from dotenv import load_dotenv
 load_dotenv('.env')
 os_name = os.environ.get("OS")
@@ -423,7 +424,6 @@ def readAndParseData16xx(Dataport, configParameters):
         subFrameNumber = np.matmul(byteBuffer[idX:idX + 4], word)
         idX += 4
         print('idx before entering: ', idX)
-        df=pandas.DataFrame()
         # Read the TLV messages
         for tlvIdx in range(numTLVs):
 
@@ -442,34 +442,93 @@ def readAndParseData16xx(Dataport, configParameters):
             # Read the data depending on the TLV message
             if tlv_type == MMWDEMO_UART_MSG_DETECTED_POINTS:
                 detObj = processDetectedPoints(byteBuffer, idX, configParameters)
-                df1=pandas.DataFrame(detObj)
-                df=pandas.concat([df, df1], axis=1, ignore_index=True)
+                with open("dataset.csv", "w") as outfile:
+                    writer = csv.writer(outfile)
+
+                    writer.writerow(detObj.keys())                
+                    
+                    writer.writerows(zip(*detObj.values()))
             elif tlv_type == MMWDEMO_UART_MSG_RANGE_PROFILE:
                 noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=True)
-                df1=pandas.DataFrame(noiseObj)
-                df=pandas.concat([df, df1], axis=1, ignore_index=True)
+                with open("dataset.csv", "w") as outfile:
+ 
+                    # pass the csv file to csv.writer function.
+                    writer = csv.writer(outfile)
+                
+                    # pass the dictionary keys to writerow
+                    # function to frame the columns of the csv file
+                    writer.writerow(noiseObj.keys())
+                
+                    # make use of writerows function to append
+                    # the remaining values to the corresponding
+                    # columns using zip function.
+                    writer.writerows(zip(*noiseObj.values()))
             elif tlv_type == MMWDEMO_OUTPUT_MSG_NOISE_PROFILE:
                 noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=False)
-                df1=pandas.DataFrame(noiseObj)
-                df=pandas.concat([df, df1], axis=1, ignore_index=True)
+                with open("dataset.csv", "w") as outfile:
+ 
+                    # pass the csv file to csv.writer function.
+                    writer = csv.writer(outfile)
+                
+                    # pass the dictionary keys to writerow
+                    # function to frame the columns of the csv file
+                    writer.writerow(noiseObj.keys())
+                
+                    # make use of writerows function to append
+                    # the remaining values to the corresponding
+                    # columns using zip function.
+                    writer.writerows(zip(*noiseObj.values()))
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
                 heatObj=processAzimuthHeatMap(byteBuffer, idX, configParameters)
-                df1=pandas.DataFrame(heatObj)
-                df=pandas.concat([df, df1], axis=1, ignore_index=True)
+                with open("dataset.csv", "w") as outfile:
+ 
+                    # pass the csv file to csv.writer function.
+                    writer = csv.writer(outfile)
+                
+                    # pass the dictionary keys to writerow
+                    # function to frame the columns of the csv file
+                    writer.writerow(heatObj.keys())
+                
+                    # make use of writerows function to append
+                    # the remaining values to the corresponding
+                    # columns using zip function.
+                    writer.writerows(zip(*heatObj.values()))
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
                 dopplerObj=processRangeDopplerHeatMap(byteBuffer,idX)
-                df=df.append(dopplerObj, ignore_index=True)
+                with open("dataset.csv", "w") as outfile:
+ 
+                    # pass the csv file to csv.writer function.
+                    writer = csv.writer(outfile)
+                
+                    # pass the dictionary keys to writerow
+                    # function to frame the columns of the csv file
+                    writer.writerow(dopplerObj.keys())
+                
+                    # make use of writerows function to append
+                    # the remaining values to the corresponding
+                    # columns using zip function.
+                    writer.writerows(zip(*dopplerObj.values()))
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj=processStatistics(byteBuffer, idX)
-                df1=pandas.DataFrame(statisticsObj)
-                df=pandas.concat([df, df1], axis=1, ignore_index=True)
+                with open("dataset.csv", "w") as outfile:
+ 
+                    # pass the csv file to csv.writer function.
+                    writer = csv.writer(outfile)
+                
+                    # pass the dictionary keys to writerow
+                    # function to frame the columns of the csv file
+                    writer.writerow(statisticsObj.keys())
+                
+                    # make use of writerows function to append
+                    # the remaining values to the corresponding
+                    # columns using zip function.
+                    writer.writerows(zip(*statisticsObj.values()))
 
             idX += tlv_length
             print('final idx: ', idX)
             # except Error as e:
             #     print('Here is a pass', e)
             #     pass
-        df.to_csv('dataset.csv', index=False)
         # Remove already processed data
         if idX > 0 and byteBufferLength > idX:
             shiftSize = totalPacketLen
