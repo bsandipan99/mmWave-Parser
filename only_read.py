@@ -6,8 +6,12 @@ import matplotlib.pyplot as plt
 import pandas
 import fft
 import math
+import os
+from dotenv import load_dotenv
+load_dotenv('.env')
+os_name = os.environ.get("OS")
 
-# TO DO: Add your own config file
+
 configFileName = 'all_profiles.cfg'
 CLIport = {}
 Dataport = {}
@@ -29,12 +33,13 @@ def serialConfig(configFileName):
     # Open the serial ports for the configuration and the data ports
 
     # Raspberry pi
-    CLIport = serial.Serial('COM3', 115200)
-    Dataport = serial.Serial('COM4', 921600)
+    if os_name == "Ubuntu":
+    	CLIport = serial.Serial('/dev/ttyACM0', 115200)
+    	Dataport = serial.Serial('/dev/ttyACM1', 921600)
 
-    # Windows
-    # CLIport = serial.Serial('COM3', 115200)
-    # Dataport = serial.Serial('COM4', 921600)
+    elif os_name == "Windows":
+        CLIport = serial.Serial('COM3', 115200)
+        Dataport = serial.Serial('COM4', 921600)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip('\r\n') for line in open(configFileName)]
@@ -266,12 +271,17 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
 
 def processRangeDopplerHeatMap(byteBuffer, idX):
     # Get the number of bytes to read
-    numBytes = 2 * configParameters["numRangeBins"] * configParameters["numDopplerBins"]
+    numBytes = 2 * configParameters["numRangeBins"] * int(configParameters["numDopplerBins"])
     numBytes = int(numBytes)
     # Convert the raw data to int16 array
     payload = byteBuffer[idX:idX + numBytes]
     idX += numBytes
-    return
+    # rangeDoppler = math.add(
+    #     math.subset(rangeDoppler, math.index(math.range(0, numBytes, 2))),
+    #     math.multiply(math.subset(rangeDoppler, math.index(math.range(1, numBytes, 2))), 256)
+    # );
+    payload = sum(np.array(payload[0:numBytes:2]), np.array(payload[1:numBytes:2]) * 256)
+
     rangeDoppler = payload.view(dtype=np.int16)
     # Some frames have strange values, skip those frames
     # TO DO: Find why those strange frames happen
@@ -279,20 +289,20 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     #     return 0
 
     # Convert the range doppler array to a matrix
-    # rangeDoppler = np.reshape(rangeDoppler,
-    #                           (configParameters["numDopplerBins"], configParameters["numRangeBins"]),
-    #                           'F')  # Fortran-like reshape
-    # rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
-    #                          rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
+    rangeDoppler = np.reshape(rangeDoppler,
+                              (int(configParameters["numDopplerBins"]), configParameters["numRangeBins"]),
+                              'F')  # Fortran-like reshape
+    rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
+                             rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
     #
     # # Generate the range and doppler arrays for the plot
-    # rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
-    # dopplerArray = np.multiply(
-    #     np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
-    #     configParameters["dopplerResolutionMps"])
-    # dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
-    #
-    # return dopplerObj
+    rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
+    dopplerArray = np.multiply(
+        np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
+        configParameters["dopplerResolutionMps"])
+    dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
+    print('dopplerObj', dopplerObj)
+    return dopplerObj
 
 
 def processStatistics(byteBuffer, idX):
@@ -447,8 +457,8 @@ def readAndParseData16xx(Dataport, configParameters):
                 df1=pandas.DataFrame(heatObj)
                 df=pandas.concat([df, df1], axis=1, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
-                processRangeDopplerHeatMap(byteBuffer,idX)
-                # df=df.append(dopplerObj, ignore_index=True)
+                dopplerObj=processRangeDopplerHeatMap(byteBuffer,idX)
+                df=df.append(dopplerObj, ignore_index=True)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
                 statisticsObj=processStatistics(byteBuffer, idX)
                 df1=pandas.DataFrame(statisticsObj)
