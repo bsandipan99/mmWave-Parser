@@ -8,6 +8,7 @@ import fft
 import math
 import os
 import csv
+from operator import add
 from dotenv import load_dotenv
 load_dotenv('.env')
 os_name = os.environ.get("OS")
@@ -220,7 +221,7 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
         traceidX = 2
     numrp = 2 * configParameters["numRangeBins"]
     rp = byteBuffer[idX:idX + numrp]
-    rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256)    
+    rp= list(map(add, rp[0:numrp:2], rp[1:numrp:2]*256))  
     rp_x= np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
     noiseObj={'numrp': numrp, 'rp': rp, 'rpX': rp_x}
@@ -300,7 +301,7 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     #     math.subset(rangeDoppler, math.index(math.range(0, numBytes, 2))),
     #     math.multiply(math.subset(rangeDoppler, math.index(math.range(1, numBytes, 2))), 256)
     # );
-    payload = sum(np.array(payload[0:numBytes:2]), np.array(payload[1:numBytes:2]) * 256)
+    payload = list(map(add, payload[0:numBytes:2], payload[1:numBytes:2]*256)) 
 
     rangeDoppler = payload.view(dtype=np.int16)
     # Some frames have strange values, skip those frames
