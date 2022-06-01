@@ -224,7 +224,7 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
     numrp = 2 * configParameters["numRangeBins"]
     rp = byteBuffer[idX:idX + numrp]
 
-    rp=list(map(add, rp[0:numrp:2], rp[1:numrp:2]*256))    
+    rp = list(map(add, rp[0:numrp:2], list(map(lambda x:256*x, rp[1:numrp:2]))))    
     rp_x= np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
     noiseObj={'rp': rp}
@@ -309,7 +309,7 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     #     math.multiply(math.subset(rangeDoppler, math.index(math.range(1, numBytes, 2))), 256)
     # );
 
-    payload = list(map(add, payload[0:numBytes:2], payload[1:numBytes:2]*256))     #wrong implementation. Need to update the range doppler at range index
+    payload = list(map(add, payload[0:numBytes:2], list(map(lambda x:256*x, payload[1:numBytes:2]))))     #wrong implementation. Need to update the range doppler at range index
 
     rangeDoppler = payload.view(dtype=np.int16)
     # Some frames have strange values, skip those frames
