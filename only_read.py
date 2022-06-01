@@ -1,3 +1,4 @@
+from inspect import trace
 from turtle import pd
 import serial
 import time
@@ -25,11 +26,9 @@ NUM_ANGLE_BINS = 64
 range_depth = 10
 range_width = 5
 
-
 header=['Date','Time','numObj', 'rangeIdx', 'range', 'dopplerIdx',
-              'doppler', 'peakVal', 'x', 'y', 'z', 'rp',
-              'rpX', 'zi',
-              'rangeDoppler', 'rangeArray', 'dopplerArray',
+              'doppler', 'peakVal', 'x', 'y', 'z', 'rp', 'noiserp', 
+              'zi', 'rangeDoppler', 'rangeArray', 'dopplerArray',
               'interFrameProcessingTime', 'transmitOutputTime',
            'interFrameProcessingMargin', 'interChirpProcessingMargin',
            'activeFrameCPULoad', 'interFrameCPULoad']
@@ -227,8 +226,12 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
     rp = list(map(add, rp[0:numrp:2], list(map(lambda x:256*x, rp[1:numrp:2]))))    
     rp_x= np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
-    noiseObj={'rp': rp}
-    return noiseObj
+    if traceidX == 0:
+        noiseObj={'rp': rp}
+        return noiseObj
+    elif traceidX == 2:
+        noiseObj={'noiserp': rp}
+        return noiseObj
 
 
 def processAzimuthHeatMap(byteBuffer, idX, configParameters):
