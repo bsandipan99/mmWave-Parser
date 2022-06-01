@@ -312,9 +312,9 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     #     math.multiply(math.subset(rangeDoppler, math.index(math.range(1, numBytes, 2))), 256)
     # );
 
-    payload = list(map(add, payload[0:numBytes:2], list(map(lambda x:256*x, payload[1:numBytes:2]))))     #wrong implementation. Need to update the range doppler at range index
+    rangeDoppler = list(map(add, payload[0:numBytes:2], list(map(lambda x:256*x, payload[1:numBytes:2]))))     #wrong implementation. Need to update the range doppler at range index
 
-    rangeDoppler = payload.view(dtype=np.int16)
+    # rangeDoppler = payload.view(dtype=np.int16)
     # Some frames have strange values, skip those frames
     # TO DO: Find why those strange frames happen
     # if np.max(rangeDoppler) > 10000:
