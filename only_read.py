@@ -8,6 +8,7 @@ import fft
 import math
 import os
 import csv
+from operator import add
 from dotenv import load_dotenv
 load_dotenv('.env')
 os_name = os.environ.get("OS")
@@ -23,6 +24,7 @@ xlin, ylin = [], []
 NUM_ANGLE_BINS = 64
 range_depth = 10
 range_width = 5
+
 
 header=['Date','Time','numObj', 'rangeIdx', 'range', 'dopplerIdx',
               'doppler', 'peakVal', 'x', 'y', 'z', 'rp',
@@ -221,7 +223,8 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
         traceidX = 2
     numrp = 2 * configParameters["numRangeBins"]
     rp = byteBuffer[idX:idX + numrp]
-    rp=sum(np.array(rp[0:numrp:2]),np.array(rp[1:numrp:2])*256)                             # This is also wrong implementation
+
+    rp=list(map(add, rp[0:numrp:2], rp[1:numrp:2]*256))    
     rp_x= np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
     noiseObj={'rp': rp}
@@ -305,7 +308,8 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     #     math.subset(rangeDoppler, math.index(math.range(0, numBytes, 2))),
     #     math.multiply(math.subset(rangeDoppler, math.index(math.range(1, numBytes, 2))), 256)
     # );
-    payload = sum(np.array(payload[0:numBytes:2]), np.array(payload[1:numBytes:2]) * 256)    #wrong implementation. Need to update the range doppler at range index.
+
+    payload = list(map(add, payload[0:numBytes:2], payload[1:numBytes:2]*256))     #wrong implementation. Need to update the range doppler at range index
 
     rangeDoppler = payload.view(dtype=np.int16)
     # Some frames have strange values, skip those frames
@@ -522,6 +526,7 @@ detObj = {}
 frameData = {}
 currentIndex = 0
 filename=file_create()
+
 linecounter=0
 
 while True:
@@ -530,6 +535,7 @@ while True:
         linecounter = 0
         print('creatng new file')
         filename = file_create()
+
     try:
         dataOk, frameNumber, detObj = readAndParseData16xx(Dataport, configParameters,filename)
         # print(detObj)
