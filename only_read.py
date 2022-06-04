@@ -37,7 +37,6 @@ def file_create():
     filename = os.path.abspath('')
     filename += time.strftime("\%Y%m%d_%H%M%S")
     filename += '.csv'
-    print('Created file', filename)
     with open(filename, 'w') as f:
         csv.DictWriter(f, fieldnames=header).writeheader()
 
@@ -67,7 +66,6 @@ def serialConfig(configFileName):
     config = [line.rstrip('\r\n') for line in open(configFileName)]
     for i in config:
         CLIport.write((i + '\n').encode())
-        print(i)
         time.sleep(0.01)
 
     return CLIport, Dataport
@@ -206,11 +204,9 @@ def processDetectedPoints(byteBuffer, idX, configParameters):
     z = z / tlv_xyzQFormat
 
     # Store the data in the detObj dictionary
-    detObj = {"numObj": tlv_numObj, "rangeIdx": rangeIdx, "range": rangeVal, "dopplerIdx": dopplerIdx,
-              "doppler": dopplerVal, "peakVal": peakVal, "x": x, "y": y, "z": z}
-    print('detObj', detObj)
+    detObj = {"numObj": tlv_numObj, "rangeIdx": list(rangeIdx), "range": list(rangeVal), "dopplerIdx": list(dopplerIdx),
+              "doppler": list(dopplerVal), "peakVal": list(peakVal), "x": list(x), "y": list(y), "z": list(z)}
     dataOK = 1
-    print('idX after detecting points:', idX)
     return detObj
 
 
@@ -270,7 +266,6 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
         theta = []
         for ang in angles_rad:
             theta.append(math.asin(ang))
-        # print('theta', theta)
         range_val = np.multiply(np.arange(0, configParameters["numRangeBins"], 1), configParameters["rangeIdxToMeters"])
         sin_theta = []
         cos_theta = []
@@ -291,19 +286,16 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
         xiyi = meshgrid(xlin, ylin)
         rangeAzimuthHeatMapGridInit = 1
 
-    # print('posX:', posX, 'posY:', posY, 'xiyi[0]:', xiyi[0], 'xiyi[1]:', xiyi[1])
 
     zi = fliplrQQ
     zi = reshape_rowbased(zi, len(ylin), len(xlin))
     heatObj={'zi': zi}
-    # print('x: ', [xlin], 'y: ', [ylin], 'z: ', [zi])
     return heatObj
 
 
 def processRangeDopplerHeatMap(byteBuffer, idX):
     # Get the number of bytes to read
-    numBytes = 2 * configParameters["numRangeBins"] * int(configParameters["numDopplerBins"])
-    numBytes = int(numBytes)
+    numBytes = 8192
     # Convert the raw data to int16 array
     payload = byteBuffer[idX:idX + numBytes]
     idX += numBytes
@@ -332,12 +324,13 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     dopplerArray = np.multiply(
         np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
         configParameters["dopplerResolutionMps"])                                                               # This is dopplermps from js. 
-    dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': rangeArray, 'dopplerArray': dopplerArray}
-    print('dopplerObj', dopplerObj)
+    dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': list(rangeArray), 'dopplerArray': list(dopplerArray)}
     return dopplerObj
 
 
 def processStatistics(byteBuffer, idX):
+    print('Getting called')
+    print('STarting idX: ', idX)
     word = [1, 2 ** 8, 2 ** 16, 2 ** 24]
     interFrameProcessingTime = np.matmul(byteBuffer[idX:idX + 4], word)
     idX += 4
@@ -352,16 +345,19 @@ def processStatistics(byteBuffer, idX):
 
     interFrameCPULoad = np.matmul(byteBuffer[idX:idX + 4], word)
     idX += 4
+
     statisticsObj={'interFrameProcessingTime': interFrameProcessingTime, 'transmitOutputTime': transmitOutputTime,
            'interFrameProcessingMargin': interFrameProcessingMargin, 'interChirpProcessingMargin':
            interChirpProcessingMargin,
            'activeFrameCPULoad': activeFrameCPULoad, 'interFrameCPULoad': interFrameCPULoad}
+    print(statisticsObj)
+    print('Ending idX: ', idX)
     return statisticsObj
 
 
 def readAndParseData16xx(Dataport, configParameters,filename):
     global byteBuffer, byteBufferLength
-    finalObj={'Date':time.strftime('%Y%m%d'), 'Time':time.strftime('%H%M%S')}
+    finalObj={'Date':time.strftime('%d/%m/%Y'), 'Time':time.strftime('%H:%M:%S')}
     # Constants
     OBJ_STRUCT_SIZE_BYTES = 12
     BYTE_VEC_ACC_MAX_SIZE = 2 ** 15
@@ -384,7 +380,6 @@ def readAndParseData16xx(Dataport, configParameters,filename):
     readBuffer = Dataport.read(Dataport.in_waiting)
     byteVec = np.frombuffer(readBuffer, dtype='uint8')
     byteCount = len(byteVec)
-    print('byteCount', byteCount)
     # Check that the buffer is not full, and then add the data to the buffer
     if (byteBufferLength + byteCount) < maxBufferSize:
         byteBuffer[byteBufferLength:byteBufferLength + byteCount] = byteVec[:byteCount]
@@ -407,7 +402,7 @@ def readAndParseData16xx(Dataport, configParameters,filename):
         if startIdx:
 
             # Remove the data before the first start index
-            if startIdx[0] > 0 and startIdx[0] < byteBufferLength:
+            if 0 < startIdx[0] < byteBufferLength:
                 byteBuffer[:byteBufferLength - startIdx[0]] = byteBuffer[startIdx[0]:byteBufferLength]
                 byteBuffer[byteBufferLength - startIdx[0]:] = np.zeros(len(byteBuffer[byteBufferLength - startIdx[0]:]),
                                                                        dtype='uint8')
@@ -455,7 +450,6 @@ def readAndParseData16xx(Dataport, configParameters,filename):
         idX += 4
         subFrameNumber = np.matmul(byteBuffer[idX:idX + 4], word)
         idX += 4
-        print('idx before entering: ', idX)
         # Read the TLV messages
         for tlvIdx in range(numTLVs):
 
@@ -463,14 +457,12 @@ def readAndParseData16xx(Dataport, configParameters,filename):
             word = [1, 2 ** 8, 2 ** 16, 2 ** 24]
 
             # Check the header of the TLV message
-            # try:
-            print('Entering after deteing tlv_type = ', tlv_type)
             tlv_type = np.matmul(byteBuffer[idX:idX + 4], word)
             idX += 4
             tlv_length = np.matmul(byteBuffer[idX:idX + 4], word)
             idX += 4
-            print('tlv_type', tlv_type)
-            print('tlv_length', tlv_length)
+            print('tlv_type, idX', tlv_type, idX)
+
             # Read the data depending on the TLV message
             if tlv_type == MMWDEMO_UART_MSG_DETECTED_POINTS:
                 detObj = processDetectedPoints(byteBuffer, idX, configParameters)
@@ -492,16 +484,13 @@ def readAndParseData16xx(Dataport, configParameters,filename):
                 finalObj.update(statisticsObj)
 
             idX += tlv_length
-            print('final idx: ', idX)
-            print('finalObj: ', finalObj)
             # except Error as e:
-            #     print('Here is a pass', e)
             #     pass
         # Remove already processed data
         with open(filename, 'a') as f:
                     writer = csv.DictWriter(f, header)
                     writer.writerow(finalObj)
-        if idX > 0 and byteBufferLength > idX:
+        if 0 < idX < byteBufferLength:
             shiftSize = totalPacketLen
 
             byteBuffer[:byteBufferLength - shiftSize] = byteBuffer[shiftSize:byteBufferLength]
@@ -513,7 +502,7 @@ def readAndParseData16xx(Dataport, configParameters,filename):
             if byteBufferLength < 0:
                 byteBufferLength = 0
 
-    return dataOK, frameNumber, detObj
+    return dataOK, frameNumber, finalObj
 
 
 # -------------------------    MAIN   -----------------------------------------
@@ -536,14 +525,13 @@ while True:
     linecounter += 1
     if linecounter > 10000:
         linecounter = 0
-        print('creatng new file')
         filename = file_create()
 
     try:
-        dataOk, frameNumber, detObj = readAndParseData16xx(Dataport, configParameters,filename)
-        # print(detObj)
+        dataOk, frameNumber, finalObj = readAndParseData16xx(Dataport, configParameters,filename)
         if dataOk:
             # Store the current frame into frameData
+            print(finalObj)
             frameData[currentIndex] = detObj
             currentIndex += 1
 
