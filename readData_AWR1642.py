@@ -1,9 +1,15 @@
 #!/usr/bin/env python3.8
+import os.path
+
 import serial
 import time
 import csv
 import time
 import numpy as np
+from dotenv import load_dotenv
+load_dotenv('.env')
+os_name = os.environ.get("OS")
+
 #import pyqtgraph as pg
 #from pyqtgraph.Qt import QtGui
 
@@ -14,7 +20,7 @@ header = ['Date', 'Time', 'numObj', 'rangeIdx', 'range', 'dopplerIdx', 'doppler'
           'totalPacketLen', 'platform', 'frameNumber', 'timeCpuCycles', 'numDetectedObj', 'numTLVs', 'subFrameNumber',
           'tlv_type', 'tlv_length', 'tlv_numObj', 'tlv_xyzQFormat']
 
-configFileName = 'sensor_out_of_box_demo.cfg'
+configFileName = 'all_profiles.cfg'
 CLIport = {}
 Dataport = {}
 byteBuffer = np.zeros(2 ** 15, dtype='uint8')
@@ -22,7 +28,7 @@ byteBufferLength = 0
 
 
 def file_create():
-    filename = '/home/argha/Documents/github/AWR1642-Read-Data-Python-MMWAVE-SDK-2/dataset/'
+    filename = os.path.abspath('')
     filename += time.strftime("%Y%m%d_%H%M%S")
     filename += '.csv'
     print('Created file', filename)
@@ -44,13 +50,13 @@ def serialConfig(configFileName):
     global Dataport
     # Open the serial ports for the configuration and the data ports
 
-    # Raspberry pi
-    CLIport = serial.Serial('/dev/ttyACM1', 115200)
-    Dataport = serial.Serial('/dev/ttyACM2', 921600)
+    if os_name == "Ubuntu":
+    	CLIport = serial.Serial('/dev/ttyACM0', 115200)
+    	Dataport = serial.Serial('/dev/ttyACM1', 921600)
 
-    # Windows
-    # CLIport = serial.Serial('COM3', 115200)
-    # Dataport = serial.Serial('COM4', 921600)
+    elif os_name == "Windows_NT":
+        CLIport = serial.Serial('COM3', 115200)
+        Dataport = serial.Serial('COM4', 921600)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip('\r\n') for line in open(configFileName)]
@@ -227,7 +233,7 @@ def readAndParseData16xx(Dataport, configParameters, filename):
                 #print('*******', ('tlv_type: ', tlv_type, 'tlv_length: ', tlv_length), 'idX: ', idX, '*******')
             except:
                 pass
-
+            print(tlv_type)
             # Read the data depending on the TLV message
             if tlv_type == MMWDEMO_UART_MSG_DETECTED_POINTS:
 
@@ -291,7 +297,8 @@ def readAndParseData16xx(Dataport, configParameters, filename):
                     writer = csv.DictWriter(f, header)
                     writer.writerow(filedumper)
                 dataOK = 1
-
+            else:
+                idX += tlv_length
         # Remove already processed data
         if 0 < idX < byteBufferLength:
             shiftSize = totalPacketLen
