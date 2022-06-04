@@ -11,9 +11,9 @@ import os
 import csv
 from operator import add
 from dotenv import load_dotenv
+
 load_dotenv('.env')
 os_name = os.environ.get("OS")
-
 
 configFileName = 'all_profiles.cfg'
 CLIport = {}
@@ -26,12 +26,13 @@ NUM_ANGLE_BINS = 64
 range_depth = 10
 range_width = 5
 
-header=['Date','Time','numObj', 'rangeIdx', 'range', 'dopplerIdx',
-              'doppler', 'peakVal', 'x', 'y', 'z', 'rp', 'noiserp', 
-              'zi', 'rangeDoppler', 'rangeArray', 'dopplerArray',
-              'interFrameProcessingTime', 'transmitOutputTime',
-           'interFrameProcessingMargin', 'interChirpProcessingMargin',
-           'activeFrameCPULoad', 'interFrameCPULoad']
+header = ['Date', 'Time', 'numObj', 'rangeIdx', 'range', 'dopplerIdx',
+          'doppler', 'peakVal', 'x', 'y', 'z', 'rp', 'noiserp',
+          'zi', 'rangeDoppler', 'rangeArray', 'dopplerArray',
+          'interFrameProcessingTime', 'transmitOutputTime',
+          'interFrameProcessingMargin', 'interChirpProcessingMargin',
+          'activeFrameCPULoad', 'interFrameCPULoad']
+
 
 def file_create():
     filename = os.path.abspath('')
@@ -41,7 +42,6 @@ def file_create():
         csv.DictWriter(f, fieldnames=header).writeheader()
 
     return filename
-
 
 
 # ------------------------------------------------------------------
@@ -55,8 +55,8 @@ def serialConfig(configFileName):
 
     # Raspberry pi
     if os_name == "Ubuntu":
-    	CLIport = serial.Serial('/dev/ttyACM0', 115200)
-    	Dataport = serial.Serial('/dev/ttyACM1', 921600)
+        CLIport = serial.Serial('/dev/ttyACM0', 115200)
+        Dataport = serial.Serial('/dev/ttyACM1', 921600)
 
     elif os_name == "Windows_NT":
         CLIport = serial.Serial('COM3', 115200)
@@ -219,14 +219,14 @@ def processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeP
     numrp = 2 * configParameters["numRangeBins"]
     rp = byteBuffer[idX:idX + numrp]
 
-    rp = list(map(add, rp[0:numrp:2], list(map(lambda x:256*x, rp[1:numrp:2]))))    
-    rp_x= np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
+    rp = list(map(add, rp[0:numrp:2], list(map(lambda x: 256 * x, rp[1:numrp:2]))))
+    rp_x = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     idX += numrp
     if traceidX == 0:
-        noiseObj={'rp': rp}
+        noiseObj = {'rp': rp}
         return noiseObj
     elif traceidX == 2:
-        noiseObj={'noiserp': rp}
+        noiseObj = {'noiserp': rp}
         return noiseObj
 
 
@@ -286,10 +286,9 @@ def processAzimuthHeatMap(byteBuffer, idX, configParameters):
         xiyi = meshgrid(xlin, ylin)
         rangeAzimuthHeatMapGridInit = 1
 
-
     zi = fliplrQQ
     zi = reshape_rowbased(zi, len(ylin), len(xlin))
-    heatObj={'zi': zi}
+    heatObj = {'zi': zi}
     return heatObj
 
 
@@ -304,7 +303,8 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     #     math.multiply(math.subset(rangeDoppler, math.index(math.range(1, numBytes, 2))), 256)
     # );
 
-    rangeDoppler = list(map(add, payload[0:numBytes:2], list(map(lambda x:256*x, payload[1:numBytes:2]))))     #wrong implementation. Need to update the range doppler at range index
+    rangeDoppler = list(map(add, payload[0:numBytes:2], list(map(lambda x: 256 * x, payload[
+                                                                                    1:numBytes:2]))))  # wrong implementation. Need to update the range doppler at range index
 
     # rangeDoppler = payload.view(dtype=np.int16)
     # Some frames have strange values, skip those frames
@@ -323,8 +323,8 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
     rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     dopplerArray = np.multiply(
         np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
-        configParameters["dopplerResolutionMps"])                                                               # This is dopplermps from js. 
-    dopplerObj={'rangeDoppler': rangeDoppler, 'rangeArray': list(rangeArray), 'dopplerArray': list(dopplerArray)}
+        configParameters["dopplerResolutionMps"])  # This is dopplermps from js.
+    dopplerObj = {'rangeDoppler': rangeDoppler, 'rangeArray': list(rangeArray), 'dopplerArray': list(dopplerArray)}
     return dopplerObj
 
 
@@ -346,18 +346,18 @@ def processStatistics(byteBuffer, idX):
     interFrameCPULoad = np.matmul(byteBuffer[idX:idX + 4], word)
     idX += 4
 
-    statisticsObj={'interFrameProcessingTime': interFrameProcessingTime, 'transmitOutputTime': transmitOutputTime,
-           'interFrameProcessingMargin': interFrameProcessingMargin, 'interChirpProcessingMargin':
-           interChirpProcessingMargin,
-           'activeFrameCPULoad': activeFrameCPULoad, 'interFrameCPULoad': interFrameCPULoad}
+    statisticsObj = {'interFrameProcessingTime': interFrameProcessingTime, 'transmitOutputTime': transmitOutputTime,
+                     'interFrameProcessingMargin': interFrameProcessingMargin, 'interChirpProcessingMargin':
+                         interChirpProcessingMargin,
+                     'activeFrameCPULoad': activeFrameCPULoad, 'interFrameCPULoad': interFrameCPULoad}
     print(statisticsObj)
     print('Ending idX: ', idX)
     return statisticsObj
 
 
-def readAndParseData16xx(Dataport, configParameters,filename):
+def readAndParseData16xx(Dataport, configParameters, filename):
     global byteBuffer, byteBufferLength
-    finalObj={'Date':time.strftime('%d/%m/%Y'), 'Time':time.strftime('%H:%M:%S')}
+    finalObj = {'Date': time.strftime('%d/%m/%Y'), 'Time': time.strftime('%H:%M:%S')}
     # Constants
     OBJ_STRUCT_SIZE_BYTES = 12
     BYTE_VEC_ACC_MAX_SIZE = 2 ** 15
@@ -424,7 +424,7 @@ def readAndParseData16xx(Dataport, configParameters,filename):
 
     # If magicOK is equal to 1 then process the message
     if magicOK:
-        
+
         # word array to convert 4 bytes to a 32 bit number
         word = [1, 2 ** 8, 2 ** 16, 2 ** 24]
 
@@ -468,19 +468,19 @@ def readAndParseData16xx(Dataport, configParameters,filename):
                 detObj = processDetectedPoints(byteBuffer, idX, configParameters)
                 finalObj.update(detObj)
             elif tlv_type == MMWDEMO_UART_MSG_RANGE_PROFILE:
-                noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=True)
+                noiseObj = processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=True)
                 finalObj.update(noiseObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_NOISE_PROFILE:
-                noiseObj=processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=False)
+                noiseObj = processRangeNoiseProfile(byteBuffer, idX, detObj, configParameters, isRangeProfile=False)
                 finalObj.update(noiseObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
-                heatObj=processAzimuthHeatMap(byteBuffer, idX, configParameters)
+                heatObj = processAzimuthHeatMap(byteBuffer, idX, configParameters)
                 finalObj.update(heatObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
-                dopplerObj=processRangeDopplerHeatMap(byteBuffer,idX)
+                dopplerObj = processRangeDopplerHeatMap(byteBuffer, idX)
                 finalObj.update(dopplerObj)
             elif tlv_type == MMWDEMO_OUTPUT_MSG_STATS:
-                statisticsObj=processStatistics(byteBuffer, idX)
+                statisticsObj = processStatistics(byteBuffer, idX)
                 finalObj.update(statisticsObj)
 
             idX += tlv_length
@@ -488,8 +488,8 @@ def readAndParseData16xx(Dataport, configParameters,filename):
             #     pass
         # Remove already processed data
         with open(filename, 'a') as f:
-                    writer = csv.DictWriter(f, header)
-                    writer.writerow(finalObj)
+            writer = csv.DictWriter(f, header)
+            writer.writerow(finalObj)
         if 0 < idX < byteBufferLength:
             shiftSize = totalPacketLen
 
@@ -517,9 +517,9 @@ configParameters = parseConfigFile(configFileName)
 detObj = {}
 frameData = {}
 currentIndex = 0
-filename=file_create()
+filename = file_create()
 
-linecounter=0
+linecounter = 0
 
 while True:
     linecounter += 1
@@ -528,14 +528,14 @@ while True:
         filename = file_create()
 
     try:
-        dataOk, frameNumber, finalObj = readAndParseData16xx(Dataport, configParameters,filename)
+        dataOk, frameNumber, finalObj = readAndParseData16xx(Dataport, configParameters, filename)
         if dataOk:
             # Store the current frame into frameData
             print(finalObj)
-            frameData[currentIndex] = detObj
+            frameData[currentIndex] = finalObj
             currentIndex += 1
 
-        time.sleep(0.03)  # Sampling frequency of 30 Hz
+        # time.sleep(0.03)  # Sampling frequency of 30 Hz
 
     # Stop the program and close everything if Ctrl + c is pressed
     except KeyboardInterrupt:
