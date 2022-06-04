@@ -318,13 +318,19 @@ def processRangeDopplerHeatMap(byteBuffer, idX):
                               'F')  # Fortran-like reshape
     rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
                              rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
+
+    dopplerM = []
+    rangeDoppler_list = list(rangeDoppler)
+    for e in rangeDoppler_list:
+        dopplerM.append(list(e))
+
     #
     # # Generate the range and doppler arrays for the plot
     rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
     dopplerArray = np.multiply(
         np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
         configParameters["dopplerResolutionMps"])  # This is dopplermps from js.
-    dopplerObj = {'rangeDoppler': rangeDoppler, 'rangeArray': list(rangeArray), 'dopplerArray': list(dopplerArray)}
+    dopplerObj = {'rangeDoppler': dopplerM, 'rangeArray': list(rangeArray), 'dopplerArray': list(dopplerArray)}
     return dopplerObj
 
 
