@@ -36,7 +36,10 @@ header = ['Date', 'Time', 'numObj', 'rangeIdx', 'range', 'dopplerIdx',
 
 def file_create():
     filename = os.path.abspath('')
-    filename += time.strftime("\%Y%m%d_%H%M%S")
+    if os_name == "Windows_NT":
+        filename += time.strftime("\%Y%m%d_%H%M%S")
+    elif os_name == "Ubuntu":
+        filename += time.strftime("/%Y%m%d_%H%M%S") 
     filename += '.csv'
     with open(filename, 'w') as f:
         csv.DictWriter(f, fieldnames=header).writeheader()
