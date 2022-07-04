@@ -366,7 +366,7 @@ def processStatistics(byteBuffer, idX):
 
 def readAndParseData16xx(Dataport, configParameters, filename):
     global byteBuffer, byteBufferLength
-    finalObj = {'Date': time.strftime('%d/%m/%Y'), 'Time': time.strftime('%H:%M:%S')}
+    finalObj = {'Date': time.strftime('%d/%m/%Y'), 'Time': time.strftime('%H%M%S')}
     # Constants
     OBJ_STRUCT_SIZE_BYTES = 12
     BYTE_VEC_ACC_MAX_SIZE = 2 ** 15
@@ -532,7 +532,7 @@ linecounter = 0
 
 while True:
     linecounter += 1
-    if linecounter > 10000:
+    if linecounter > 1000000000:
         linecounter = 0
         filename = file_create()
 
